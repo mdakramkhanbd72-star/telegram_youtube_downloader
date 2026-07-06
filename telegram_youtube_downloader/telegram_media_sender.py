@@ -1,8 +1,28 @@
 import os
 import shutil
 import logging
-
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import requests
+
+# =============================================================
+# RENDER PORT TIMEOUT FIX (ডামি ওয়েব সার্ভার)
+# =============================================================
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"Bot is running successfully!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
+# ব্যাকগ্রাউন্ডে সার্ভারটি চালু করা হচ্ছে যেন রেন্ডার পোর্ট খুঁজে পায়
+threading.Thread(target=run_dummy_server, daemon=True).start()
+# =============================================================
 
 from telegram_youtube_downloader.errors.send_error import SendError
 from telegram_youtube_downloader.utils.config_utils import ConfigUtils
@@ -58,7 +78,7 @@ class TelegramMediaSender:
 					self.__logger.warning(resp)
 					raise SendError(f"Could not send audio, Telegram: {resp['description']}")
 
-		except requests.Timeout, requests.ConnectionError:
+		except (requests.Timeout, requests.ConnectionError):
 			self.__logger.warning("Could not send audio, timeout")
 			raise SendError("Could not send audio, timeout")
 
@@ -91,7 +111,7 @@ class TelegramMediaSender:
 					self.__logger.warning(resp)
 					raise SendError(f"Could not send video, Telegram: {resp['description']}")
 
-		except requests.Timeout, requests.ConnectionError:
+		except (requests.Timeout, requests.ConnectionError):
 			self.__logger.warning("Could not send video, timeout")
 			raise SendError("Could not send video, timeout")
 
